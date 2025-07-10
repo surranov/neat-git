@@ -22,8 +22,7 @@
     "jetbrains"
   ],
   "activationEvents": [
-    "onCommand:neat-git.openCommitLog",
-    "onView:neat-git.commitLog"
+    "onCommand:neat-git.openCommitLog"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -39,26 +38,7 @@
         "category": "Neat Git",
         "icon": "$(refresh)"
       }
-    ],
-    "views": {
-      "scm": [
-        {
-          "id": "neat-git.commitLog",
-          "name": "Commit Log",
-          "type": "webview",
-          "when": "scmProvider == git"
-        }
-      ]
-    },
-    "menus": {
-      "view/title": [
-        {
-          "command": "neat-git.refresh",
-          "when": "view == neat-git.commitLog",
-          "group": "navigation"
-        }
-      ]
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

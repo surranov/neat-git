@@ -9,19 +9,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Create commit log view provider
   const commitLogProvider = new CommitLogViewProvider(context.extensionUri);
-  
-  // Register webview provider
-  const webviewProvider = vscode.window.registerWebviewViewProvider(
-    'neat-git.commitLog',
-    commitLogProvider
-  );
 
   // Register commands
   const openCommitLogCommand = vscode.commands.registerCommand(
     'neat-git.openCommitLog',
     () => {
-      // Focus the commit log view
-      vscode.commands.executeCommand('workbench.view.scm');
+      // Create and show commit log panel
+      commitLogProvider.createCommitLogPanel();
     }
   );
 
@@ -34,7 +28,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Add to subscriptions
   context.subscriptions.push(
-    webviewProvider,
     openCommitLogCommand,
     refreshCommand
   );

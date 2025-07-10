@@ -4,36 +4,52 @@ import { WebviewMessageType, WebviewMessages } from '../types/ui.types';
 /**
  * Webview provider for commit log
  */
-export class CommitLogViewProvider implements vscode.WebviewViewProvider {
+export class CommitLogViewProvider {
   public static readonly viewType = 'neat-git.commitLog';
 
-  private _view?: vscode.WebviewView;
+  private _panel: vscode.WebviewPanel | undefined;
 
   constructor(private readonly _extensionUri: vscode.Uri) {}
 
   /**
-   * Resolves the webview view
+   * Creates and shows the commit log panel
    */
-  public resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
-  ): void {
-    this._view = webviewView;
+  public createCommitLogPanel(): void {
+    const column = vscode.window.activeTextEditor
+      ? vscode.window.activeTextEditor.viewColumn
+      : undefined;
 
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [this._extensionUri]
-    };
+    // If panel already exists, just show it
+    if (this._panel) {
+      this._panel.reveal(column);
+      return;
+    }
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    // Create webview panel
+    this._panel = vscode.window.createWebviewPanel(
+      CommitLogViewProvider.viewType,
+      'Neat Git - Commit Log',
+      column || vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        localResourceRoots: [this._extensionUri],
+        retainContextWhenHidden: true
+      }
+    );
+
+    this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
 
     // Handle messages from webview
-    webviewView.webview.onDidReceiveMessage(
+    this._panel.webview.onDidReceiveMessage(
       (message: WebviewMessages) => {
         this._handleMessage(message);
       }
     );
+
+    // Handle panel disposal
+    this._panel.onDidDispose(() => {
+      this._panel = undefined;
+    });
 
     // Initialize the view
     this._initializeView();
@@ -43,7 +59,7 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
    * Refreshes the commit log data
    */
   public refresh(): void {
-    if (this._view) {
+    if (this._panel) {
       this._loadCommitData();
     }
   }
@@ -78,7 +94,7 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
    * Initializes the webview
    */
   private _initializeView(): void {
-    if (!this._view) {
+    if (!this._panel) {
       return;
     }
 
@@ -90,7 +106,7 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
     }
 
     // Send initial state
-    this._view.webview.postMessage({
+    this._panel.webview.postMessage({
       type: WebviewMessageType.InitializeState,
       payload: {
         repositoryPath: workspaceFolder.uri.fsPath,
@@ -106,7 +122,7 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
    * Loads commit data (mock implementation for now)
    */
   private _loadCommitData(): void {
-    if (!this._view) {
+    if (!this._panel) {
       return;
     }
 
@@ -136,7 +152,7 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
       }
     ];
 
-    this._view.webview.postMessage({
+    this._panel.webview.postMessage({
       type: WebviewMessageType.UpdateCommits,
       payload: {
         commits: mockCommits,
@@ -184,8 +200,8 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
    * Shows an error message
    */
   private _showError(message: string): void {
-    if (this._view) {
-      this._view.webview.postMessage({
+    if (this._panel) {
+      this._panel.webview.postMessage({
         type: WebviewMessageType.ShowError,
         payload: { message }
       });
@@ -198,61 +214,62 @@ export class CommitLogViewProvider implements vscode.WebviewViewProvider {
   private _getInitialViewState(): any {
     return {
       filters: {},
-      sorting: { field: 'date', direction: 'desc' },
-      selection: { selectedCommits: [], mode: 'single' },
-      layout: {
-        orientation: 'horizontal',
-        columnWidths: {
-          graph: 120,
-          message: 400,
-          author: 150,
-          date: 120,
-          hash: 80
-        },
-        showFileChanges: true,
-        fileChangesPanelSize: 300
-      },
-      isLoading: false,
-      commits: [],
-      totalCommits: 0,
-      currentPage: 0,
-      itemsPerPage: 100
+      selectedCommit: null,
+      showGraph: true,
+      layout: 'vertical'
     };
   }
 
   /**
-   * Gets HTML for webview
+   * Gets the HTML for the webview
    */
   private _getHtmlForWebview(webview: vscode.Webview): string {
     // Get the local path to main script run in the webview
     const scriptPathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js');
     const scriptUri = webview.asWebviewUri(scriptPathOnDisk);
 
+    // Use a nonce to only allow specific scripts to be run
+    const nonce = this._getNonce();
+
     return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Neat Git - Commit Log</title>
-        <style>
-            body {
-                padding: 0;
-                margin: 0;
-                font-family: var(--vscode-font-family);
-                font-size: var(--vscode-font-size);
-                color: var(--vscode-foreground);
-                background-color: var(--vscode-editor-background);
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+          <title>Neat Git - Commit Log</title>
+          <style>
+            body, html {
+              margin: 0;
+              padding: 0;
+              height: 100vh;
+              font-family: var(--vscode-font-family);
+              font-size: var(--vscode-font-size);
+              background-color: var(--vscode-editor-background);
+              color: var(--vscode-editor-foreground);
             }
             #root {
-                height: 100vh;
-                width: 100%;
+              height: 100vh;
+              width: 100vw;
             }
-        </style>
-    </head>
-    <body>
-        <div id="root"></div>
-        <script src="${scriptUri}"></script>
-    </body>
-    </html>`;
+          </style>
+      </head>
+      <body>
+          <div id="root"></div>
+          <script nonce="${nonce}" src="${scriptUri}"></script>
+      </body>
+      </html>`;
+  }
+
+  /**
+   * Gets a random nonce for security
+   */
+  private _getNonce(): string {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
 } 
