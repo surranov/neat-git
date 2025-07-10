@@ -41,6 +41,28 @@ This creates:
 
 The generated VSIX file includes the version number in the filename and is saved to the `builds/` folder for easy management.
 
+## Version Management
+
+Update version and build:
+
+```bash
+# Patch version (0.0.1 -> 0.0.2)
+npm run version:patch
+
+# Minor version (0.1.0 -> 0.2.0)  
+npm run version:minor
+
+# Major version (1.0.0 -> 2.0.0)
+npm run version:major
+```
+
+Create release:
+
+```bash
+# Builds, commits, tags and pushes to GitHub
+npm run release
+```
+
 ## Usage
 
 ### Commit Log

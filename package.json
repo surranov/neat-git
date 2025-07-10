@@ -2,7 +2,7 @@
   "name": "neat-git",
   "displayName": "Neat Git",
   "description": "Advanced Git interface for VS Code inspired by JetBrains IDEs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "repository": {
     "type": "git",
     "url": "https://github.com/surranov/neat-git"
@@ -46,6 +46,10 @@
     "watch": "webpack --mode development --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
     "build": "npm run compile && vsce package --out builds/neat-git-v$(node -p \"require('./package.json').version\").vsix",
+    "version:patch": "npm version patch --no-git-tag-version && npm run build",
+    "version:minor": "npm version minor --no-git-tag-version && npm run build",
+    "version:major": "npm version major --no-git-tag-version && npm run build",
+    "release": "npm run build && git add . && git commit -m \"Bump version to $(node -p \"require('./package.json').version\")\" && git tag v$(node -p \"require('./package.json').version\") && git push && git push --tags",
     "compile-tests": "tsc -p . --outDir dist",
     "watch-tests": "tsc -p . -w --outDir dist",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
